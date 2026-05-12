@@ -520,6 +520,16 @@
       font-weight: 600;
     }
 
+    .error-message {
+      display: none;
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(153, 39, 39, 0.08);
+      border: 1px solid rgba(153, 39, 39, 0.18);
+      color: #7f1d1d;
+    }
+
     @media (min-width: 760px) {
       .page {
         width: min(calc(100% - 48px), var(--max));
@@ -824,28 +834,30 @@
           Laissez vos coordonnées et votre secteur de recherche. Un conseiller CELIA Creation reviendra vers vous pour vérifier la cohérence du projet, son implantation sur le terrain et son adéquation avec votre recherche.
         </p>
         <p class="microcopy">
-        
+          Vos informations sont transmises à notre équipe afin d'étudier la cohérence du projet et de vous recontacter dans les meilleures conditions.
         </p>
       </div>
 
       <div class="form-card">
         <form id="lead-form">
           <div class="field-row">
-            <input type="text" name="nom" placeholder="Nom">
-            <input type="text" name="prenom" placeholder="Prénom">
+            <input type="text" name="nom" placeholder="Nom" required>
+            <input type="text" name="prenom" placeholder="Prénom" required>
           </div>
           <div class="field-row">
-            <input type="email" name="email" placeholder="Email">
-            <input type="tel" name="telephone" placeholder="Téléphone">
+            <input type="email" name="email" placeholder="Email" required>
+            <input type="tel" name="telephone" placeholder="Téléphone" required>
           </div>
-          <input type="text" name="secteur" placeholder="Secteur de recherche" value="Odars">
-          <textarea name="message" placeholder="Parlez-nous de votre projet, de votre secteur recherché ou de votre calendrier."></textarea>
-          <button class="btn btn-primary" type="submit">Envoyer</button>
+          <input type="text" name="secteur" placeholder="Secteur de recherche" value="Odars" required>
+          <textarea name="message" placeholder="Parlez-nous de votre projet, de votre secteur recherché ou de votre calendrier." required></textarea>
+          <button class="btn btn-primary" type="submit" id="submit-button">Envoyer</button>
         </form>
         <div class="confirmation-message" id="confirmation-message">
           Votre demande a bien été prise en compte. Nous revenons vers vous pour vous partager les détails du projet et échanger sur sa faisabilité par rapport à votre recherche. En attendant consultez notre site web <a href="https://celia-creation.fr" target="_blank" rel="noopener noreferrer">CELIA Création</a>.
         </div>
-        
+        <div class="error-message" id="error-message">
+          Une erreur est survenue pendant l'envoi. Vous pouvez réessayer dans quelques instants.
+        </div>
       </div>
     </section>
   </main>
@@ -853,15 +865,52 @@
   <script>
     const leadForm = document.getElementById("lead-form");
     const confirmationMessage = document.getElementById("confirmation-message");
+    const errorMessage = document.getElementById("error-message");
+    const submitButton = document.getElementById("submit-button");
 
-    if (leadForm && confirmationMessage) {
-      leadForm.addEventListener("submit", function (event) {
+    if (leadForm && confirmationMessage && errorMessage && submitButton) {
+      leadForm.addEventListener("submit", async function (event) {
         event.preventDefault();
-        confirmationMessage.style.display = "block";
-        leadForm.reset();
-        const sectorInput = leadForm.querySelector('input[name="secteur"]');
-        if (sectorInput) {
-          sectorInput.value = "Odars";
+        confirmationMessage.style.display = "none";
+        errorMessage.style.display = "none";
+        submitButton.disabled = true;
+        submitButton.textContent = "Envoi...";
+
+        const formData = new FormData(leadForm);
+        const payload = {
+          nom: formData.get("nom"),
+          prenom: formData.get("prenom"),
+          email: formData.get("email"),
+          telephone: formData.get("telephone"),
+          secteur_recherche: formData.get("secteur"),
+          message: formData.get("message"),
+          landing_page: window.location.href
+        };
+
+        try {
+          const response = await fetch("/api/lead", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            throw new Error("Lead submission failed");
+          }
+
+          confirmationMessage.style.display = "block";
+          leadForm.reset();
+          const sectorInput = leadForm.querySelector('input[name="secteur"]');
+          if (sectorInput) {
+            sectorInput.value = "Odars";
+          }
+        } catch (error) {
+          errorMessage.style.display = "block";
+        } finally {
+          submitButton.disabled = false;
+          submitButton.textContent = "Envoyer";
         }
       });
     }
